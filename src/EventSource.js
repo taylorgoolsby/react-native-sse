@@ -22,6 +22,7 @@ class EventSource {
 
     this.eventHandlers = {
       open: [],
+      data: [],
       message: [],
       error: [],
       close: [],
