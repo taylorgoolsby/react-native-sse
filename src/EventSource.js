@@ -112,7 +112,12 @@ class EventSource {
             this._logDebug('[EventSource][onreadystatechange][OPEN] Connection opened.');
           }
 
-          this._handleEvent(xhr.responseText || '');
+          this.dispatch('data', {
+            type: 'data',
+            data: xhr.responseText
+          });
+
+          // this._handleEvent(xhr.responseText || '');
 
           if (xhr.readyState === XMLHttpRequest.DONE) {
             this._logDebug('[EventSource][onreadystatechange][DONE] Operation done.');
