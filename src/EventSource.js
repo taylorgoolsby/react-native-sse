@@ -113,12 +113,7 @@ class EventSource {
             this._logDebug('[EventSource][onreadystatechange][OPEN] Connection opened.');
           }
 
-          this.dispatch('data', {
-            type: 'data',
-            data: xhr.responseText
-          });
-
-          // this._handleEvent(xhr.responseText || '');
+          this._handleEvent(xhr.responseText || '');
 
           if (xhr.readyState === XMLHttpRequest.DONE) {
             this._logDebug('[EventSource][onreadystatechange][DONE] Operation done.');
@@ -185,66 +180,75 @@ class EventSource {
   }
 
   _handleEvent(response) {
-    if (this.lineEndingCharacter === null) {
-      const detectedNewlineChar = this._detectNewlineChar(response);
-      if (detectedNewlineChar !== null) {
-        this._logDebug(`[EventSource] Automatically detected lineEndingCharacter: ${JSON.stringify(detectedNewlineChar).slice(1, -1)}`);
-        this.lineEndingCharacter = detectedNewlineChar;
-      } else {
-        console.warn("[EventSource] Unable to identify the line ending character. Ensure your server delivers a standard line ending character: \\r\\n, \\n, \\r, or specify your custom character using the 'lineEndingCharacter' option.");
-        return;
-      }
-    }
+    this._lastIndexProcessed = this._lastIndexProcessed || 0
+    const newData = response.slice(this._lastIndexProcessed)
+    this._lastIndexProcessed = response.length
 
-    const indexOfDoubleNewline = this._getLastDoubleNewlineIndex(response);
-    if (indexOfDoubleNewline <= this._lastIndexProcessed) {
-      return;
-    }
+    this.dispatch('data', {
+      type: 'data',
+      data: newData
+    });
 
-    const parts = response.substring(this._lastIndexProcessed, indexOfDoubleNewline).split(this.lineEndingCharacter);
-    this._lastIndexProcessed = indexOfDoubleNewline;
-
-    let type = undefined;
-    let id = null;
-    let data = [];
-    let retry = 0;
-    let line = '';
-
-    for (let i = 0; i < parts.length; i++) {
-      line = parts[i].trim();
-      if (line.startsWith('event')) {
-        type = line.replace(/event:?\s*/, '');
-      } else if (line.startsWith('retry')) {
-        retry = parseInt(line.replace(/retry:?\s*/, ''), 10);
-        if (!isNaN(retry)) {
-          this.interval = retry;
-        }
-      } else if (line.startsWith('data')) {
-        data.push(line.replace(/data:?\s*/, ''));
-      } else if (line.startsWith('id')) {
-        id = line.replace(/id:?\s*/, '');
-        if (id !== '') {
-          this.lastEventId = id;
-        } else {
-          this.lastEventId = null;
-        }
-      } else if (line === '') {
-        if (data.length > 0) {
-          const eventType = type || 'message';
-          const event = {
-            type: eventType,
-            data: data.join('\n'),
-            url: this.url,
-            lastEventId: this.lastEventId,
-          };
-
-          this.dispatch(eventType, event);
-
-          data = [];
-          type = undefined;
-        }
-      }
-    }
+    // if (this.lineEndingCharacter === null) {
+    //   const detectedNewlineChar = this._detectNewlineChar(response);
+    //   if (detectedNewlineChar !== null) {
+    //     this._logDebug(`[EventSource] Automatically detected lineEndingCharacter: ${JSON.stringify(detectedNewlineChar).slice(1, -1)}`);
+    //     this.lineEndingCharacter = detectedNewlineChar;
+    //   } else {
+    //     console.warn("[EventSource] Unable to identify the line ending character. Ensure your server delivers a standard line ending character: \\r\\n, \\n, \\r, or specify your custom character using the 'lineEndingCharacter' option.");
+    //     return;
+    //   }
+    // }
+    //
+    // const indexOfDoubleNewline = this._getLastDoubleNewlineIndex(response);
+    // if (indexOfDoubleNewline <= this._lastIndexProcessed) {
+    //   return;
+    // }
+    //
+    // const parts = response.substring(this._lastIndexProcessed, indexOfDoubleNewline).split(this.lineEndingCharacter);
+    // this._lastIndexProcessed = indexOfDoubleNewline;
+    //
+    // let type = undefined;
+    // let id = null;
+    // let data = [];
+    // let retry = 0;
+    // let line = '';
+    //
+    // for (let i = 0; i < parts.length; i++) {
+    //   line = parts[i].trim();
+    //   if (line.startsWith('event')) {
+    //     type = line.replace(/event:?\s*/, '');
+    //   } else if (line.startsWith('retry')) {
+    //     retry = parseInt(line.replace(/retry:?\s*/, ''), 10);
+    //     if (!isNaN(retry)) {
+    //       this.interval = retry;
+    //     }
+    //   } else if (line.startsWith('data')) {
+    //     data.push(line.replace(/data:?\s*/, ''));
+    //   } else if (line.startsWith('id')) {
+    //     id = line.replace(/id:?\s*/, '');
+    //     if (id !== '') {
+    //       this.lastEventId = id;
+    //     } else {
+    //       this.lastEventId = null;
+    //     }
+    //   } else if (line === '') {
+    //     if (data.length > 0) {
+    //       const eventType = type || 'message';
+    //       const event = {
+    //         type: eventType,
+    //         data: data.join('\n'),
+    //         url: this.url,
+    //         lastEventId: this.lastEventId,
+    //       };
+    //
+    //       this.dispatch(eventType, event);
+    //
+    //       data = [];
+    //       type = undefined;
+    //     }
+    //   }
+    // }
   }
 
   _detectNewlineChar(response) {
